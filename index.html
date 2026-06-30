@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>RescuePaw AI (Beta)</title>
+<meta name="description" content="RescuePaw AI — animal rescue, pet care &amp; wildlife guidance assistant. Prototype Beta v0.1.">
+<meta name="theme-color" content="#0E1410">
+
+<!-- ============================================================
+     PWA MANIFEST (inlined as data URI — single-file prototype)
+     ============================================================ -->
+<link id="manifestLink" rel="manifest" href="">
+<link id="appleIcon" rel="apple-touch-icon" href="">
+<link id="favicon" rel="icon" href="">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RescuePaw">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+/* ==========================================================================
+   ROOT TOKENS — design system
+   Theme: "Triage Light" — deep forest-night base, amber rescue-beacon accent,
+   coral alert tone for emergencies. Calm but alert; built for a vet's hands
+   at night, not a generic SaaS dashboard.
+   ========================================================================== */
+:root{
+  --font-display:'Fjalla One','Arial Narrow',sans-serif;
+  --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+
+  /* dark (default) palette */
+  --bg-0:#0B100D;
+  --bg-1:#10170F1A;
+  --surface:#151D18;
+  --surface-2:#1B251D;
+  --surface-glass: rgba(24,33,26,0.55);
+  --border-glass: rgba(255,255,255,0.08);
+  --border-glass-strong: rgba(255,255,255,0.14);
+  --text-0:#F4F1E9;
+  --text-1:#C9D1C5;
+  --text-2:#8C988A;
+  --accent:#E8A33D;       /* rescue-beacon amber */
+  --accent-2:#F2C572;
+  --alert:#E8623D;        /* coral alert */
+  --alert-2:#FF8A66;
+  --ok:#6FBF8B;
+  --shadow-color: 0,0,0;
+  --beta-bg: rgba(232,163,61,0.14);
+  --beta-border: rgba(232,163,61,0.45);
+  --scrim: rgba(8,11,9,0.6);
+  --radius-lg:26px;
+  --radius-md:18px;
+  --radius-sm:12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme="light"]{
+  --bg-0:#F3F0E6;
+  --surface:#FFFFFF;
+  --surface-2:#FBF8F0;
+  --surface-glass: rgba(255,255,255,0.6);
+  --border-glass: rgba(20,24,18,0.08);
+  --border-glass-strong: rgba(20,24,18,0.14);
+  --text-0:#171C14;
+  --text-1:#43493F;
+  --text-2:#767E70;
+  --accent:#C9821F;
+  --accent-2:#E8A33D;
+  --alert:#D34F2C;
+  --alert-2:#E8623D;
+  --ok:#3F8F60;
+  --shadow-color: 20,24,18;
+  --beta-bg: rgba(201,130,31,0.12);
+  --beta-border: rgba(201,130,31,0.4);
+  --scrim: rgba(40,38,30,0.35);
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(232,163,61,0.10), transparent 60%),
+    radial-gradient(700px 500px at 110% 10%, rgba(232,98,61,0.08), transparent 55%),
+    var(--bg-0);
+  color:var(--text-0);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+  transition:background-color .4s ease,color .4s ease;
+}
+::selection{ background:var(--accent); color:#1b1306; }
+a{color:inherit;}
+button{font-family:inherit;}
+
+/* subtle noise / grain texture for "premium" depth, GPU-cheap */
+.grain{
+  position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ==========================================================================
+   APP SHELL
+   ========================================================================== */
+#app{
+  position:relative; z-index:1;
+  max-width:560px; margin:0 auto;
+  min-height:100vh;
+  display:flex; flex-direction:column;
+  padding-bottom: calc(86px + var(--safe-bottom));
+}
+
+.topbar{
+  position:sticky; top:0; z-index:30;
+  padding: calc(16px + var(--safe-top)) 20px 14px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background: linear-gradient(180deg, var(--bg-0) 60%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.brand{ display:flex; align-items:center; gap:10px; }
+.brand-mark{
+  width:38px; height:38px; border-radius:11px;
+  background: linear-gradient(145deg, var(--accent), var(--alert));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 6px 18px -6px rgba(232,98,61,0.55);
+  flex-shrink:0;
+}
+.brand-mark svg{ width:21px; height:21px; }
+.brand-text{ line-height:1.05; }
+.brand-text .name{
+  font-family:var(--font-display); font-weight:400; letter-spacing:.3px;
+  font-size:19px; display:flex; align-items:center; gap:6px;
+}
+.brand-text .tagline{
+  font-size:10.5px; letter-spacing:1.6px; text-transform:uppercase;
+  color:var(--text-2); font-weight:600; margin-top:2px;
+}
+.beta-pill-sm{
+  font-size:9.5px; font-weight:700; letter-spacing:.6px;
+  padding:2.5px 7px; border-radius:20px;
+  background:var(--beta-bg); border:1px solid var(--beta-border); color:var(--accent);
+}
+.topbar-actions{ display:flex; gap:8px; }
+.icon-btn{
+  width:38px; height:38px; border-radius:13px;
+  border:1px solid var(--border-glass); background:var(--surface-glass);
+  backdrop-filter: blur(10px);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  color:var(--text-1); transition:transform .15s ease, background .2s ease, border-color .2s;
+}
+.icon-btn:active{ transform:scale(.9); }
+.icon-btn svg{ width:18px; height:18px; }
+
+main{ flex:1; padding: 4px 20px 28px; position:relative; }
+
+.page{ display:none; animation: pageIn .42s cubic-bezier(.22,.9,.3,1.1); }
+.page.active{ display:block; }
+@keyframes pageIn{
+  from{ opacity:0; transform:translateY(10px) scale(.99); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+/* ==========================================================================
+   GLASS CARD SYSTEM
+   ========================================================================== */
+.card{
+  background:var(--surface-glass);
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-lg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 10px 30px -14px rgba(var(--shadow-color),0.45);
+  padding:20px;
+  position:relative; overflow:hidden;
+}
+.card + .card{ margin-top:14px; }
+.card::before{
+  content:''; position:absolute; inset:0; border-radius:inherit; padding:1px;
+  background:linear-gradient(135deg, rgba(255,255,255,0.18), transparent 40%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events:none;
+}
+
+/* HERO / WELCOME */
+.hero{
+  border-radius:var(--radius-lg);
+  padding:24px 20px 22px;
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(232,163,61,0.22), transparent 55%),
+    radial-gradient(100% 120% at 0% 100%, rgba(232,98,61,0.18), transparent 55%),
+    var(--surface-glass);
+  border:1px solid var(--border-glass-strong);
+  backdrop-filter: blur(18px);
+  box-shadow:0 16px 40px -18px rgba(var(--shadow-color),0.5);
+}
+.beta-badge-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+.beta-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 12px 6px 8px; border-radius:30px;
+  background:var(--beta-bg); border:1px solid var(--beta-border);
+  font-size:11.5px; font-weight:700; letter-spacing:.4px; color:var(--accent);
+}
+.beta-badge .dot{
+  width:7px; height:7px; border-radius:50%; background:var(--accent);
+  box-shadow:0 0 0 0 rgba(232,163,61,.6); animation: pulseDot 2s infinite;
+}
+@keyframes pulseDot{
+  0%{ box-shadow:0 0 0 0 rgba(232,163,61,.55);}
+  70%{ box-shadow:0 0 0 8px rgba(232,163,61,0);}
+  100%{ box-shadow:0 0 0 0 rgba(232,163,61,0);}
+}
+.version-chip{
+  font-size:10.5px; font-family:var(--font-mono); color:var(--text-2);
+  border:1px dashed var(--border-glass-strong); padding:5px 9px; border-radius:20px;
+}
+.hero h1{
+  font-family:var(--font-display); font-weight:400; letter-spacing:.2px;
+  font-size:27px; line-height:1.18; margin:0 0 8px;
+}
+.hero h1 span{ color:var(--accent); }
+.hero p{
+  font-size:14.5px; color:var(--text-1); line-height:1.55; margin:0 0 18px; max-width:46ch;
+}
+.hero-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+
+.btn{
+  appearance:none; border:none; cursor:pointer;
+  border-radius:14px; padding:12px 18px; font-size:14px; font-weight:700;
+  display:inline-flex; align-items:center; gap:8px;
+  transition: transform .15s ease, filter .2s ease, box-shadow .2s ease;
+  font-family:inherit; letter-spacing:.2px;
+}
+.btn svg{width:16px; height:16px;}
+.btn:active{ transform:scale(.96); }
+.btn-primary{
+  background:linear-gradient(135deg, var(--accent), var(--alert));
+  color:#1A1206;
+  box-shadow:0 10px 24px -10px rgba(232,98,61,.6);
+}
+.btn-primary:hover{ filter:brightness(1.06); }
+.btn-ghost{
+  background:var(--surface-glass); color:var(--text-0);
+  border:1px solid var(--border-glass-strong);
+}
+
+/* DISCLAIMER BANNER */
+.disclaimer{
+  display:flex; gap:12px; align-items:flex-start;
+  background: linear-gradient(135deg, rgba(232,98,61,0.12), rgba(232,163,61,0.07));
+  border:1px solid var(--beta-border);
+  border-radius:var(--radius-md);
+  padding:14px 16px; margin-top:14px;
+}
+.disclaimer svg{ width:20px; height:20px; flex-shrink:0; color:var(--alert); margin-top:1px; }
+.disclaimer p{ margin:0; font-size:12.5px; line-height:1.55; color:var(--text-1); }
+.disclaimer strong{ color:var(--text-0); }
+
+/* SECTION HEADINGS */
+.section-head{ display:flex; align-items:baseline; justify-content:space-between; margin: 26px 2px 12px; }
+.section-head h2{
+  font-family:var(--font-display); font-weight:400; font-size:16.5px; letter-spacing:.3px; margin:0;
+  display:flex; align-items:center; gap:8px;
+}
+.section-head .sub{ font-size:11.5px; color:var(--text-2); }
+
+/* QUICK ACTION GRID */
+.grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.action-tile{
+  border-radius:var(--radius-md); padding:16px 14px;
+  border:1px solid var(--border-glass); background:var(--surface-glass);
+  backdrop-filter:blur(14px);
+  cursor:pointer; text-align:left;
+  display:flex; flex-direction:column; gap:10px;
+  transition: transform .18s cubic-bezier(.22,.9,.3,1.2), border-color .2s, background .2s;
+}
+.action-tile:active{ transform:scale(.96); }
+.action-tile .ic{
+  width:38px; height:38px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg, var(--accent), var(--alert)); color:#1A1206;
+}
+.action-tile .ic svg{ width:19px; height:19px; }
+.action-tile h3{ font-size:13.5px; margin:0; font-weight:700; }
+.action-tile p{ font-size:11.5px; color:var(--text-2); margin:0; line-height:1.4; }
+
+/* STAT STRIP */
+.stat-strip{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.stat-box{
+  border-radius:var(--radius-sm); padding:14px 10px; text-align:center;
+  border:1px solid var(--border-glass); background:var(--surface-glass);
+}
+.stat-box .num{ font-family:var(--font-display); font-size:21px; color:var(--accent); }
+.stat-box .lab{ font-size:9.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:.8px; margin-top:3px;}
+
+/* FEATURE LIST (roadmap-ish, on Home) */
+.roadmap-item{
+  display:flex; align-items:center; gap:12px; padding:11px 4px;
+  border-bottom:1px solid var(--border-glass);
+}
+.roadmap-item:last-child{ border-bottom:none; }
+.roadmap-item .stat-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.roadmap-item .stat-dot.live{ background:var(--ok); box-shadow:0 0 0 3px rgba(111,191,139,.18); }
+.roadmap-item .stat-dot.soon{ background:var(--accent); box-shadow:0 0 0 3px rgba(232,163,61,.18); }
+.roadmap-item .stat-dot.idea{ background:var(--text-2); }
+.roadmap-item .txt{ flex:1; }
+.roadmap-item .txt .t{ font-size:13px; font-weight:600; }
+.roadmap-item .txt .s{ font-size:11px; color:var(--text-2); }
+.roadmap-tag{
+  font-size:9.5px; font-weight:700; letter-spacing:.4px; padding:3px 8px; border-radius:20px;
+  text-transform:uppercase;
+}
+.roadmap-tag.live{ background:rgba(111,191,139,.16); color:var(--ok); }
+.roadmap-tag.soon{ background:var(--beta-bg); color:var(--accent); }
+.roadmap-tag.idea{ background:rgba(140,152,138,.14); color:var(--text-2); }
+
+/* ==========================================================================
+   BOTTOM NAVIGATION
+   ========================================================================== */
+.bottom-nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  display:flex; justify-content:center;
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  pointer-events:none;
+}
+.bottom-nav-inner{
+  pointer-events:all;
+  width:100%; max-width:520px;
+  display:flex; justify-content:space-between;
+  background:var(--surface-glass);
+  border:1px solid var(--border-glass-strong);
+  border-radius:24px;
+  padding:8px 6px;
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  box-shadow:0 16px 40px -14px rgba(var(--shadow-color),0.5);
+}
+.nav-btn{
+  flex:1; background:none; border:none; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:8px 4px 7px; border-radius:16px; color:var(--text-2);
+  transition: color .2s ease, background .2s ease;
+  position:relative;
+}
+.nav-btn svg{ width:21px; height:21px; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+.nav-btn .lbl{ font-size:9.5px; font-weight:700; letter-spacing:.2px; }
+.nav-btn.active{ color:var(--accent); }
+.nav-btn.active svg{ transform:translateY(-2px) scale(1.08); }
+.nav-btn.active .lbl{ color:var(--accent); }
+.nav-btn.active::before{
+  content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:18px; height:3px; border-radius:0 0 4px 4px;
+  background:linear-gradient(90deg,var(--accent),var(--alert));
+}
+.nav-btn:active{ background:rgba(127,127,127,0.08); }
+.nav-fab{
+  width:46px; height:46px; border-radius:16px; margin-top:-18px;
+  background:linear-gradient(135deg, var(--accent), var(--alert));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 22px -8px rgba(232,98,61,.65);
+  color:#1A1206;
+}
+.nav-fab svg{ width:21px; height:21px; }
+.nav-btn.fab-wrap{ flex:1; display:flex; align-items:center; justify-content:center; }
+
+/* ==========================================================================
+   CHAT (AI page)
+   ========================================================================== */
+.chat-shell{ display:flex; flex-direction:column; height:calc(100vh - 220px); min-height:380px; }
+.chat-scroll{
+  flex:1; overflow-y:auto; padding:6px 2px 14px;
+  display:flex; flex-direction:column; gap:12px;
+  scroll-behavior:smooth;
+}
+.msg{ display:flex; gap:10px; max-width:92%; animation: msgIn .35s cubic-bezier(.22,.9,.3,1.1); }
+@keyframes msgIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+.msg.user{ align-self:flex-end; flex-direction:row-reverse; }
+.msg .avatar{
+  width:30px; height:30px; border-radius:10px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface-2); border:1px solid var(--border-glass);
+}
+.msg.user .avatar{ background:linear-gradient(135deg, var(--accent), var(--alert)); }
+.msg .avatar svg{ width:15px; height:15px; }
+.msg .bubble{
+  padding:11px 14px; border-radius:17px; font-size:13.5px; line-height:1.55;
+  background:var(--surface-glass); border:1px solid var(--border-glass);
+  backdrop-filter:blur(12px);
+  white-space:pre-wrap;
+}
+.msg.user .bubble{
+  background:linear-gradient(135deg, rgba(232,163,61,0.22), rgba(232,98,61,0.16));
+  border-color:var(--beta-border);
+  border-bottom-right-radius:6px;
+}
+.msg.bot .bubble{ border-bottom-left-radius:6px; }
+.msg.bot .bubble img{ max-width:100%; border-radius:10px; margin-top:6px; display:block; }
+.msg img.attach{
+  max-width:160px; border-radius:12px; margin-bottom:6px; display:block; border:1px solid var(--border-glass);
+}
+
+.chat-empty{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:36px 20px; gap:14px; color:var(--text-2); flex:1;
+}
+.chat-empty .ic-ring{
+  width:64px; height:64px; border-radius:20px;
+  background:linear-gradient(135deg, rgba(232,163,61,.18), rgba(232,98,61,.12));
+  border:1px solid var(--beta-border);
+  display:flex; align-items:center; justify-content:center;
+}
+.chat-empty .ic-ring svg{ width:28px; height:28px; color:var(--accent); }
+.chat-empty h3{ font-size:15px; margin:0; color:var(--text-0); font-family:var(--font-display); font-weight:400; }
+.chat-empty p{ font-size:12.5px; max-width:32ch; margin:0; line-height:1.5; }
+.suggest-row{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:6px; }
+.suggest-chip{
+  font-size:11.5px; padding:8px 13px; border-radius:20px;
+  background:var(--surface-glass); border:1px solid var(--border-glass-strong);
+  cursor:pointer; color:var(--text-1); transition:transform .15s, border-color .2s;
+}
+.suggest-chip:active{ transform:scale(.95); }
+
+.typing-dots{ display:flex; gap:4px; padding:6px 2px; }
+.typing-dots span{
+  width:6px; height:6px; border-radius:50%; background:var(--accent);
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2){ animation-delay:.15s; }
+.typing-dots span:nth-child(3){ animation-delay:.3s; }
+@keyframes typingBounce{ 0%,60%,100%{ transform:translateY(0); opacity:.5;} 30%{ transform:translateY(-5px); opacity:1;} }
+
+.composer{
+  display:flex; align-items:flex-end; gap:8px;
+  background:var(--surface-glass); border:1px solid var(--border-glass-strong);
+  border-radius:20px; padding:8px 8px 8px 16px; backdrop-filter:blur(16px);
+  margin-top:8px;
+}
+.composer textarea{
+  flex:1; border:none; background:none; outline:none; resize:none;
+  color:var(--text-0); font-family:inherit; font-size:14px; line-height:1.4;
+  max-height:110px; padding:8px 0;
+}
+.composer textarea::placeholder{ color:var(--text-2); }
+.composer .send-btn{
+  width:38px; height:38px; border-radius:14px; flex-shrink:0;
+  background:linear-gradient(135deg, var(--accent), var(--alert)); border:none; color:#1A1206;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:transform .15s, opacity .2s;
+}
+.composer .send-btn:active{ transform:scale(.88); }
+.composer .send-btn:disabled{ opacity:.4; pointer-events:none; }
+.composer .send-btn svg{ width:17px; height:17px; }
+.composer .attach-btn{
+  width:34px; height:34px; border-radius:12px; flex-shrink:0; background:none; border:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-2);
+}
+.composer .attach-btn svg{ width:16px; height:16px; }
+
+/* ==========================================================================
+   CAMERA page
+   ========================================================================== */
+.cam-frame{
+  border-radius:var(--radius-lg); overflow:hidden; position:relative;
+  background:var(--surface-2); border:1px solid var(--border-glass);
+  aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+  margin-bottom:14px;
+}
+.cam-frame img,.cam-frame video{ width:100%; height:100%; object-fit:cover; display:block; }
+.cam-placeholder{ text-align:center; color:var(--text-2); padding:20px; }
+.cam-placeholder svg{ width:46px; height:46px; opacity:.5; margin-bottom:10px; }
+.cam-placeholder p{ font-size:12.5px; margin:0; }
+.cam-frame .corner{
+  position:absolute; width:26px; height:26px; border-color:var(--accent); opacity:.85;
+}
+.cam-frame .corner.tl{ top:14px; left:14px; border-top:3px solid; border-left:3px solid; border-radius:8px 0 0 0;}
+.cam-frame .corner.tr{ top:14px; right:14px; border-top:3px solid; border-right:3px solid; border-radius:0 8px 0 0;}
+.cam-frame .corner.bl{ bottom:14px; left:14px; border-bottom:3px solid; border-left:3px solid; border-radius:0 0 0 8px;}
+.cam-frame .corner.br{ bottom:14px; right:14px; border-bottom:3px solid; border-right:3px solid; border-radius:0 0 8px 0;}
+
+.cam-actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cam-actions .btn{ width:100%; justify-content:center; }
+
+.analysis-card{ margin-top:16px; }
+.analysis-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.analysis-head .ic-ring{
+  width:34px; height:34px; border-radius:11px;
+  background:linear-gradient(135deg, rgba(232,163,61,.2), rgba(232,98,61,.14));
+  display:flex; align-items:center; justify-content:center; color:var(--accent); flex-shrink:0;
+}
+.analysis-head .ic-ring svg{ width:17px; height:17px; }
+.analysis-head h3{ margin:0; font-size:14.5px; font-family:var(--font-display); font-weight:400;}
+.analysis-body{ font-size:13.5px; line-height:1.65; color:var(--text-1); white-space:pre-wrap; }
+
+/* skeleton loader */
+.skeleton{ border-radius:8px; background:linear-gradient(90deg, var(--surface-2) 25%, var(--border-glass-strong) 37%, var(--surface-2) 63%); background-size:400% 100%; animation: shimmer 1.4s ease infinite; }
+@keyframes shimmer{ 0%{background-position:100% 0;} 100%{background-position:0 0;} }
+.skel-line{ height:11px; margin-bottom:8px; }
+.skel-line:last-child{ width:70%; }
+
+/* ==========================================================================
+   HISTORY page
+   ========================================================================== */
+.history-item{
+  display:flex; gap:12px; align-items:flex-start; padding:14px;
+  border-radius:var(--radius-md); border:1px solid var(--border-glass);
+  background:var(--surface-glass); cursor:pointer; transition:transform .15s, border-color .2s;
+}
+.history-item:active{ transform:scale(.98); }
+.history-item .h-ic{
+  width:34px; height:34px; border-radius:11px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--accent);
+}
+.history-item .h-ic svg{ width:16px; height:16px; }
+.history-item .h-body{ flex:1; min-width:0; }
+.history-item .h-title{ font-size:13px; font-weight:700; margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.history-item .h-snippet{ font-size:11.5px; color:var(--text-2); margin:0; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.4; }
+.history-item .h-meta{ font-size:10px; color:var(--text-2); margin-top:6px; font-family:var(--font-mono); }
+.history-item .h-del{
+  flex-shrink:0; width:28px; height:28px; border-radius:9px; border:none; background:none;
+  color:var(--text-2); display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.history-item .h-del:active{ background:rgba(232,98,61,.15); color:var(--alert); }
+.history-item .h-del svg{ width:14px; height:14px; }
+
+.empty-state{
+  text-align:center; padding:50px 20px; color:var(--text-2);
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+}
+.empty-state .ic-ring{
+  width:60px; height:60px; border-radius:18px;
+  background:var(--surface-glass); border:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:center;
+}
+.empty-state .ic-ring svg{ width:26px; height:26px; opacity:.6; }
+.empty-state h3{ font-size:14.5px; color:var(--text-0); margin:0; font-family:var(--font-display); font-weight:400;}
+.empty-state p{ font-size:12.5px; max-width:30ch; margin:0; line-height:1.5; }
+
+/* ==========================================================================
+   SETTINGS page
+   ========================================================================== */
+.settings-row{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:15px 4px; border-bottom:1px solid var(--border-glass);
+}
+.settings-row:last-child{ border-bottom:none; }
+.settings-row .left{ display:flex; align-items:center; gap:12px; min-width:0; }
+.settings-row .s-ic{
+  width:36px; height:36px; border-radius:11px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface-2); color:var(--accent);
+}
+.settings-row .s-ic svg{ width:17px; height:17px; }
+.settings-row .s-txt .t{ font-size:13.5px; font-weight:700; }
+.settings-row .s-txt .s{ font-size:11px; color:var(--text-2); margin-top:1px; }
+
+.toggle{
+  width:46px; height:27px; border-radius:30px; border:none; cursor:pointer; position:relative; flex-shrink:0;
+  background:var(--surface-2); border:1px solid var(--border-glass-strong); transition:background .25s;
+}
+.toggle::after{
+  content:''; position:absolute; top:2px; left:2px; width:21px; height:21px; border-radius:50%;
+  background:var(--text-2); transition:transform .25s cubic-bezier(.34,1.56,.64,1), background .25s;
+}
+.toggle.on{ background:linear-gradient(135deg, var(--accent), var(--alert)); border-color:transparent; }
+.toggle.on::after{ transform:translateX(19px); background:#1A1206; }
+
+.seg-control{ display:flex; gap:4px; background:var(--surface-2); border:1px solid var(--border-glass); border-radius:14px; padding:4px; }
+.seg-btn{
+  flex:1; border:none; background:none; padding:9px 6px; border-radius:11px; font-size:12px; font-weight:700;
+  color:var(--text-2); cursor:pointer; transition:all .25s;
+}
+.seg-btn.active{ background:var(--surface); color:var(--accent); box-shadow:0 4px 10px -4px rgba(var(--shadow-color),0.4); }
+
+.danger-btn{
+  width:100%; padding:13px; border-radius:14px; border:1px solid rgba(232,98,61,.4);
+  background:rgba(232,98,61,.08); color:var(--alert); font-weight:700; font-size:13.5px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .15s, background .2s;
+}
+.danger-btn:active{ transform:scale(.97); background:rgba(232,98,61,.18); }
+.danger-btn svg{ width:16px; height:16px; }
+
+.input-field{
+  width:100%; padding:12px 14px; border-radius:13px; border:1px solid var(--border-glass-strong);
+  background:var(--surface-2); color:var(--text-0); font-family:var(--font-mono); font-size:12.5px; outline:none;
+}
+.field-label{ font-size:11px; color:var(--text-2); margin-bottom:7px; display:block; font-weight:700; letter-spacing:.3px; text-transform:uppercase;}
+.field-hint{ font-size:11px; color:var(--text-2); margin-top:8px; line-height:1.5; }
+
+.about-footer{ text-align:center; padding:26px 10px 6px; color:var(--text-2); }
+.about-footer .v{ font-family:var(--font-mono); font-size:11px; letter-spacing:.5px; }
+.about-footer .h{ font-size:10.5px; margin-top:4px; opacity:.7; }
+
+/* ==========================================================================
+   TOASTS
+   ========================================================================== */
+#toastHost{ position:fixed; top:calc(14px + var(--safe-top)); left:0; right:0; z-index:90; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none;}
+.toast{
+  pointer-events:all;
+  display:flex; align-items:center; gap:9px; padding:11px 16px; border-radius:14px;
+  background:var(--surface); border:1px solid var(--border-glass-strong); box-shadow:0 12px 30px -10px rgba(0,0,0,0.4);
+  font-size:12.5px; font-weight:600; max-width:88%;
+  animation: toastIn .35s cubic-bezier(.22,.9,.3,1.2);
+}
+.toast svg{ width:16px; height:16px; flex-shrink:0; }
+.toast.error{ border-color:rgba(232,98,61,.5); color:var(--alert); }
+.toast.success{ border-color:rgba(111,191,139,.5); color:var(--ok); }
+@keyframes toastIn{ from{opacity:0; transform:translateY(-12px) scale(.95);} to{opacity:1; transform:translateY(0) scale(1);} }
+@keyframes toastOut{ to{opacity:0; transform:translateY(-10px) scale(.95);} }
+
+/* install prompt banner */
+.install-banner{
+  display:none; align-items:center; gap:12px; padding:13px 14px; margin-top:14px;
+  border-radius:var(--radius-md); background:var(--surface-glass); border:1px solid var(--beta-border);
+}
+.install-banner.show{ display:flex; }
+.install-banner .ic{ width:36px; height:36px; border-radius:11px; background:linear-gradient(135deg,var(--accent),var(--alert)); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.install-banner .ic svg{ width:17px; height:17px; color:#1A1206; }
+.install-banner .txt{ flex:1; }
+.install-banner .txt b{ font-size:12.5px; display:block; }
+.install-banner .txt span{ font-size:11px; color:var(--text-2); }
+.install-banner button{
+  border:none; background:linear-gradient(135deg,var(--accent),var(--alert)); color:#1A1206;
+  font-size:11.5px; font-weight:700; padding:8px 13px; border-radius:11px; cursor:pointer; flex-shrink:0;
+}
+
+/* utility */
+.hidden{ display:none !important; }
+.spin{ animation: spin 1s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg);} }
+.flex-center{ display:flex; align-items:center; justify-content:center; }
+
+@media (max-width:360px){
+  .hero h1{ font-size:23px; }
+  .grid-2{ gap:9px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+}
+</style>
+</head>
+<body data-theme="dark">
+<div class="grain"></div>
+<div id="toastHost"></div>
+
+<div id="app">
+
+  <!-- ============================ TOP BAR ============================ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7.5-4.6-10-9.2C0.3 8.4 2 5 5.4 5c2 0 3.4 1.1 4.1 2.2.7-1.1 2.1-2.2 4.1-2.2 3.4 0 5.1 3.4 3.4 6.8C19.5 16.4 12 21 12 21Z" fill="#1A1206"/></svg>
+      </div>
+      <div class="brand-text">
+        <div class="name">RescuePaw <span class="beta-pill-sm">BETA</span></div>
+        <div class="tagline">AI Rescue Companion</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="quickThemeToggle" aria-label="Toggle theme" title="Toggle theme">
+        <svg id="quickThemeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="mainContent">
+
+    <!-- ============================ HOME PAGE ============================ -->
+    <section class="page active" id="page-home">
+
+      <div class="hero">
+        <div class="beta-badge-row">
+          <span class="beta-badge"><span class="dot"></span> Beta Testing</span>
+          <span class="version-chip">Prototype • Beta v0.1</span>
+        </div>
+        <h1>Help is one <span>snapshot</span> away.</h1>
+        <p>Ask rescue, pet care, wildlife or veterinary questions, or snap a photo of an animal to get instant AI-assisted guidance — built for the field, the shelter, and the sidewalk.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" onclick="App.navigate('ai')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg>
+            Ask the AI
+          </button>
+          <button class="btn btn-ghost" onclick="App.navigate('camera')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+            Identify Animal
+          </button>
+        </div>
+
+        <div class="disclaimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>
+          <p><strong>This is an early-stage prototype.</strong> Features are under active development and AI guidance may be incomplete or inaccurate. Always contact a licensed veterinarian or local rescue service for real emergencies. RescuePaw AI does not replace professional care.</p>
+        </div>
+      </div>
+
+      <div class="stat-strip" style="margin-top:16px;">
+        <div class="stat-box"><div class="num" id="statChats">0</div><div class="lab">AI Chats</div></div>
+        <div class="stat-box"><div class="num" id="statScans">0</div><div class="lab">Scans</div></div>
+        <div class="stat-box"><div class="num">v0.1</div><div class="lab">Build</div></div>
+      </div>
+
+      <div class="section-head">
+        <h2>Quick Actions</h2>
+        <span class="sub">tap to start</span>
+      </div>
+      <div class="grid-2">
+        <button class="action-tile" onclick="App.navigate('ai'); Chat.prefill('My dog is limping and won’t put weight on one paw — what should I check before the vet?')">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v4M14 2v4M10 18v4M14 18v4M2 10h4M2 14h4M18 10h4M18 14h4"></path><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg></div>
+          <h3>Injury Triage</h3>
+          <p>Quick first-look guidance for an injured pet</p>
+        </button>
+        <button class="action-tile" onclick="App.navigate('camera')">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></div>
+          <h3>Snap &amp; Identify</h3>
+          <p>Photograph an animal for species ID</p>
+        </button>
+        <button class="action-tile" onclick="App.navigate('ai'); Chat.prefill('I found an injured wild bird in my backyard. What should I do right now?')">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01M3 17c2-3 5-5 9-5 4.4 0 7.6 2.6 9 6-3 1.5-6.5 2-9 2-3 0-5.5-1-7-2.5"></path><path d="M13 12c1-3 3-5 6-6-1 2-1.5 3.5-1 5"></path></svg></div>
+          <h3>Wildlife Found</h3>
+          <p>Steps for a wild animal in distress</p>
+        </button>
+        <button class="action-tile" onclick="App.navigate('history')">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 3"></path></svg></div>
+          <h3>Past Sessions</h3>
+          <p>Revisit earlier chats &amp; scans</p>
+        </button>
+      </div>
+
+      <div class="section-head">
+        <h2>Beta Roadmap</h2>
+        <span class="sub">what's cooking</span>
+      </div>
+      <div class="card">
+        <div class="roadmap-item">
+          <span class="stat-dot live"></span>
+          <div class="txt"><div class="t">AI Chat Assistant</div><div class="s">Rescue &amp; pet-care Q&amp;A via OpenRouter</div></div>
+          <span class="roadmap-tag live">Live</span>
+        </div>
+        <div class="roadmap-item">
+          <span class="stat-dot live"></span>
+          <div class="txt"><div class="t">Photo Identification</div><div class="s">Capture or upload for AI analysis</div></div>
+          <span class="roadmap-tag live">Live</span>
+        </div>
+        <div class="roadmap-item">
+          <span class="stat-dot soon"></span>
+          <div class="txt"><div class="t">Nearby Shelters &amp; Vets</div><div class="s">Location-based directory</div></div>
+          <span class="roadmap-tag soon">Soon</span>
+        </div>
+        <div class="roadmap-item">
+          <span class="stat-dot idea"></span>
+          <div class="txt"><div class="t">Multi-photo Case Reports</div><div class="s">Bundle evidence for a rescue case</div></div>
+          <span class="roadmap-tag idea">Planned</span>
+        </div>
+      </div>
+
+      <div class="install-banner" id="installBanner">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"></path></svg></div>
+        <div class="txt"><b>Install RescuePaw</b><span>Add to your home screen for quick offline access</span></div>
+        <button id="installBtn">Install</button>
+      </div>
+
+    </section>
+
+    <!-- ============================ AI CHAT PAGE ============================ -->
+    <section class="page" id="page-ai">
+      <div class="section-head" style="margin-top:6px;">
+        <h2>AI Rescue Assistant</h2>
+        <span class="sub">Prototype • Beta v0.1</span>
+      </div>
+
+      <div class="chat-shell">
+        <div class="chat-scroll" id="chatScroll">
+          <!-- empty state injected by JS when no messages -->
+        </div>
+
+        <div class="composer">
+          <button class="attach-btn" id="chatAttachBtn" title="Attach photo" aria-label="Attach photo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.9 1.9 0 0 1-2.7-2.7l8.3-8.3"></path></svg>
+          </button>
+          <input type="file" id="chatImageInput" accept="image/*" class="hidden">
+          <textarea id="chatInput" rows="1" placeholder="Ask about an injured animal, behavior, first aid…"></textarea>
+          <button class="send-btn" id="chatSendBtn" aria-label="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ CAMERA PAGE ============================ -->
+    <section class="page" id="page-camera">
+      <div class="section-head" style="margin-top:6px;">
+        <h2>Animal Identification</h2>
+        <span class="sub">Prototype • Beta v0.1</span>
+      </div>
+
+      <div class="cam-frame" id="camFrame">
+        <div class="cam-placeholder" id="camPlaceholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          <p>Capture or upload a clear photo of the animal</p>
+        </div>
+        <img id="camPreviewImg" class="hidden" alt="Captured animal preview">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+
+      <div class="cam-actions">
+        <button class="btn btn-primary" id="camCaptureBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          Take Photo
+        </button>
+        <button class="btn btn-ghost" id="camUploadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg>
+          Upload
+        </button>
+      </div>
+      <input type="file" id="camFileInput" accept="image/*" capture="environment" class="hidden">
+
+      <button class="btn btn-primary" id="camAnalyzeBtn" style="width:100%; justify-content:center; margin-top:12px; display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg>
+        Analyze with AI
+      </button>
+
+      <div class="card analysis-card hidden" id="analysisCard">
+        <div class="analysis-head">
+          <div class="ic-ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg></div>
+          <h3>AI Analysis</h3>
+        </div>
+        <div id="analysisBody" class="analysis-body"></div>
+      </div>
+
+      <div class="disclaimer" style="margin-top:16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>
+        <p>Image identification is experimental and may misidentify species, breeds, injuries or risk level. Never rely on this for venomous species or aggressive-animal decisions — keep your distance and call local animal control.</p>
+      </div>
+    </section>
+
+    <!-- ============================ HISTORY PAGE ============================ -->
+    <section class="page" id="page-history">
+      <div class="section-head" style="margin-top:6px;">
+        <h2>History</h2>
+        <span class="sub">Prototype • Beta v0.1</span>
+      </div>
+      <div id="historyList" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </section>
+
+    <!-- ============================ SETTINGS PAGE ============================ -->
+    <section class="page" id="page-settings">
+      <div class="section-head" style="margin-top:6px;">
+        <h2>Settings</h2>
+        <span class="sub">Prototype • Beta v0.1</span>
+      </div>
+
+      <div class="card">
+        <div class="settings-row">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></div>
+            <div class="s-txt"><div class="t">Appearance</div><div class="s">Choose light or dark mode</div></div>
+          </div>
+        </div>
+        <div class="seg-control" style="margin-top:6px;">
+          <button class="seg-btn" data-theme-opt="light">Light</button>
+          <button class="seg-btn" data-theme-opt="dark">Dark</button>
+          <button class="seg-btn" data-theme-opt="system">System</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="settings-row">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></div>
+            <div class="s-txt"><div class="t">Beta Notifications</div><div class="s">Notify on new prototype updates</div></div>
+          </div>
+          <button class="toggle" id="toggleNotif" aria-label="Toggle notifications"></button>
+        </div>
+        <div class="settings-row">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6V16h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3Z"></path></svg></div>
+            <div class="s-txt"><div class="t">Haptics</div><div class="s">Subtle vibration on actions (if supported)</div></div>
+          </div>
+          <button class="toggle" id="toggleHaptics" aria-label="Toggle haptics"></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="settings-row" style="border:none; padding-bottom:8px;">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+            <div class="s-txt"><div class="t">OpenRouter API Key</div><div class="s">Configured in source as a constant</div></div>
+          </div>
+        </div>
+        <span class="field-label">Status</span>
+        <input class="input-field" id="apiKeyStatus" readonly value="Checking…">
+        <p class="field-hint">For this prototype, the key lives in the <code>OPENROUTER_API_KEY</code> constant near the top of the script. In a production build this must move server-side — never ship real API keys in client code.</p>
+      </div>
+
+      <div class="card">
+        <div class="settings-row">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg></div>
+            <div class="s-txt"><div class="t">Clear Local History</div><div class="s">Removes all saved chats &amp; scans from this device</div></div>
+          </div>
+        </div>
+        <button class="danger-btn" id="clearHistoryBtn" style="margin-top:10px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"></path></svg>
+          Clear All History
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="settings-row">
+          <div class="left">
+            <div class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"></path></svg></div>
+            <div class="s-txt"><div class="t">Install App</div><div class="s">Add RescuePaw to your home screen</div></div>
+          </div>
+          <button class="btn btn-ghost" id="settingsInstallBtn" style="padding:8px 14px; font-size:12px;">Install</button>
+        </div>
+      </div>
+
+      <div class="about-footer">
+        <div class="v">RescuePaw AI — Prototype • Beta v0.1</div>
+        <div class="h">Demonstration build. Not for real emergencies.</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================ BOTTOM NAV ============================ -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="nav-btn active" data-page="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"></path></svg>
+        <span class="lbl">Home</span>
+      </button>
+      <button class="nav-btn" data-page="ai">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.6-.7L3 21l1.8-5.4A8.4 8.4 0 1 1 21 11.5Z"></path></svg>
+        <span class="lbl">AI</span>
+      </button>
+      <div class="nav-btn fab-wrap" data-page="camera">
+        <button class="nav-fab" aria-label="Camera" id="fabCamera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        </button>
+      </div>
+      <button class="nav-btn" data-page="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 3"></path></svg>
+        <span class="lbl">History</span>
+      </button>
+      <button class="nav-btn" data-page="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"></path></svg>
+        <span class="lbl">Settings</span>
+      </button>
+    </div>
+  </nav>
+
+</div>
+
+<script>
+/* ============================================================================
+   RescuePaw AI (Beta) — Prototype • Beta v0.1
+   Single-file modular ES6 prototype. No external libraries/frameworks.
+
+   MODULES (each is a small self-contained object so new features can be
+   added without major refactors):
+     - CONFIG        constants (API key / model / storage keys)
+     - Store         localStorage wrapper
+     - Theme         dark/light/system theme handling
+     - Toast         transient notification UI
+     - Router/App    page navigation + bottom nav + FAB
+     - OpenRouterAPI thin wrapper around the OpenRouter chat completions API
+     - Chat          AI Chat page logic
+     - Camera        Camera / image-identification page logic
+     - History       History page rendering
+     - Settings      Settings page logic
+     - PWA           service worker + install prompt handling
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   CONFIG — single source of truth for API credentials & app constants.
+   Replace the key below with a real OpenRouter API key to go live.
+--------------------------------------------------------------------------- */
+const OPENROUTER_API_KEY = "PASTE_YOUR_API_KEY";
+const OPENROUTER_MODEL = "openai/gpt-4.1-mini";
+const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+
+const CONFIG = Object.freeze({
+  appName: "RescuePaw AI",
+  appVersion: "Beta v0.1",
+  storageKeys: {
+    theme: "rescuepaw_theme",
+    history: "rescuepaw_history",       // array of session objects (chat + scan)
+    settings: "rescuepaw_settings"       // { notif, haptics }
+  },
+  systemPrompt:
+    "You are RescuePaw AI, a friendly, knowledgeable assistant specializing in " +
+    "animal rescue, pet care, wildlife encounters, and general veterinary guidance. " +
+    "You help everyday people — not vets — make safe, sensible decisions when they " +
+    "find an injured or distressed animal, or have questions about pet health and " +
+    "behavior. Always: (1) keep answers concise, practical, and easy to follow under " +
+    "stress, (2) use short steps or bullet-style lines for action items, (3) clearly " +
+    "flag true emergencies and tell the user to contact a licensed veterinarian, " +
+    "animal control, or wildlife rescue service immediately when appropriate, " +
+    "(4) never claim certainty about a diagnosis — offer likely possibilities and " +
+    "next steps instead, (5) remind users you are an AI prototype and not a " +
+    "substitute for professional veterinary or wildlife rescue care. Keep responses " +
+    "under ~180 words unless the user asks for more detail."
+});
+
+/* ---------------------------------------------------------------------------
+   STORE — tiny localStorage wrapper, JSON-safe, fails gracefully.
+--------------------------------------------------------------------------- */
+const Store = {
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      console.warn("Store.get failed:", e);
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      console.warn("Store.set failed:", e);
+      Toast.show("Storage unavailable — changes won't persist", "error");
+      return false;
+    }
+  },
+  remove(key) {
+    try { localStorage.removeItem(key); } catch (e) { /* no-op */ }
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   TOAST — small notification system
+--------------------------------------------------------------------------- */
+const Toast = {
+  host: null,
+  init() { this.host = document.getElementById('toastHost'); },
+  show(message, type = "default", duration = 3200) {
+    if (!this.host) this.init();
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    const icon = type === 'error'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v5M12 16h.01"></path></svg>'
+      : type === 'success'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>';
+    el.innerHTML = icon + `<span>${Utils.escapeHtml(message)}</span>`;
+    this.host.appendChild(el);
+    setTimeout(() => {
+      el.style.animation = 'toastOut .3s ease forwards';
+      setTimeout(() => el.remove(), 300);
+    }, duration);
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   UTILS
+--------------------------------------------------------------------------- */
+const Utils = {
+  escapeHtml(str = "") {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  },
+  uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); },
+  timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    return new Date(ts).toLocaleDateString();
+  },
+  vibrate(pattern = 12) {
+    const settings = Store.get(CONFIG.storageKeys.settings, { haptics: true });
+    if (settings.haptics && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) { /* no-op */ }
+    }
+  },
+  fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   THEME — dark / light / system
+--------------------------------------------------------------------------- */
+const Theme = {
+  current: "dark",
+  init() {
+    const saved = Store.get(CONFIG.storageKeys.theme, "dark");
+    this.apply(saved);
+    this.syncSegControls(saved);
+
+    document.querySelectorAll('[data-theme-opt]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-theme-opt');
+        Store.set(CONFIG.storageKeys.theme, val);
+        this.apply(val);
+        this.syncSegControls(val);
+        Utils.vibrate(8);
+      });
+    });
+
+    document.getElementById('quickThemeToggle').addEventListener('click', () => {
+      const next = this.resolvedTheme() === 'dark' ? 'light' : 'dark';
+      Store.set(CONFIG.storageKeys.theme, next);
+      this.apply(next);
+      this.syncSegControls(next);
+      Utils.vibrate(8);
+    });
+
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        const saved2 = Store.get(CONFIG.storageKeys.theme, "dark");
+        if (saved2 === 'system') this.apply('system');
+      });
+    }
+  },
+  resolvedTheme() {
+    const saved = Store.get(CONFIG.storageKeys.theme, "dark");
+    if (saved === 'system') {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return saved;
+  },
+  apply(mode) {
+    const resolved = mode === 'system'
+      ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : mode;
+    document.body.setAttribute('data-theme', resolved);
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', resolved === 'dark' ? '#0E1410' : '#F3F0E6');
+    this.current = resolved;
+    const icon = document.getElementById('quickThemeIcon');
+    icon.innerHTML = resolved === 'dark'
+      ? '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>'
+      : '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>';
+  },
+  syncSegControls(mode) {
+    document.querySelectorAll('[data-theme-opt]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-theme-opt') === mode);
+    });
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   APP / ROUTER — page navigation + bottom nav state
+--------------------------------------------------------------------------- */
+const App = {
+  pages: ["home", "ai", "camera", "history", "settings"],
+  current: "home",
+  init() {
+    document.querySelectorAll('.nav-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => this.navigate(btn.getAttribute('data-page')));
+    });
+    this.navigate('home', true);
+  },
+  navigate(pageId, silent) {
+    if (!this.pages.includes(pageId)) return;
+    this.current = pageId;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(`page-${pageId}`).classList.add('active');
+    document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-page') === pageId);
+    });
+    document.getElementById('mainContent').scrollTop = 0;
+    if (!silent) Utils.vibrate(10);
+
+    // Lazy refresh per-page state when navigated to
+    if (pageId === 'history') History.render();
+    if (pageId === 'home') Home.refreshStats();
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   HOME — dashboard stat refresh
+--------------------------------------------------------------------------- */
+const Home = {
+  refreshStats() {
+    const history = Store.get(CONFIG.storageKeys.history, []);
+    const chats = history.filter(h => h.type === 'chat').length;
+    const scans = history.filter(h => h.type === 'scan').length;
+    document.getElementById('statChats').textContent = chats;
+    document.getElementById('statScans').textContent = scans;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   OPENROUTER API — thin wrapper, used by both Chat and Camera modules.
+   Centralizing this means adding new AI-powered features later only
+   requires calling OpenRouterAPI.chat() / .chatWithImage().
+--------------------------------------------------------------------------- */
+const OpenRouterAPI = {
+  isConfigured() {
+    return !!OPENROUTER_API_KEY && OPENROUTER_API_KEY !== "PASTE_YOUR_API_KEY";
+  },
+
+  async chat(messages) {
+    if (!this.isConfigured()) {
+      throw new Error("NO_API_KEY");
+    }
+    const res = await fetch(OPENROUTER_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": location.origin || "https://rescuepaw.app",
+        "X-Title": "RescuePaw AI (Beta)"
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages,
+        temperature: 0.6,
+        max_tokens: 600
+      })
+    });
+
+    if (!res.ok) {
+      let detail = "";
+      try { const errJson = await res.json(); detail = errJson?.error?.message || ""; } catch (e) { /* ignore */ }
+      throw new Error(`API_ERROR_${res.status}${detail ? ": " + detail : ""}`);
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error("EMPTY_RESPONSE");
+    return content.trim();
+  },
+
+  /** Builds a multimodal message containing both text + an image data URL */
+  buildImageUserMessage(promptText, imageDataUrl) {
+    return {
+      role: "user",
+      content: [
+        { type: "text", text: promptText },
+        { type: "image_url", image_url: { url: imageDataUrl } }
+      ]
+    };
+  },
+
+  friendlyError(err) {
+    const msg = err?.message || String(err);
+    if (msg === "NO_API_KEY") {
+      return "AI is not connected yet — add your OpenRouter API key in the source code (OPENROUTER_API_KEY) to enable live responses.";
+    }
+    if (msg.startsWith("API_ERROR_401")) return "Authentication failed — the API key appears to be invalid.";
+    if (msg.startsWith("API_ERROR_402")) return "OpenRouter account is out of credits.";
+    if (msg.startsWith("API_ERROR_429")) return "Rate limit reached — please wait a moment and try again.";
+    if (msg.startsWith("API_ERROR_5")) return "OpenRouter is having issues right now. Please try again shortly.";
+    if (msg === "EMPTY_RESPONSE") return "The AI returned an empty response. Please try rephrasing your question.";
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) return "Network error — check your connection and try again.";
+    return "Something went wrong reaching the AI. Please try again.";
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   CHAT — AI Chat page
+--------------------------------------------------------------------------- */
+const Chat = {
+  messages: [],   // {role:'user'|'assistant', content, image?}
+  els: {},
+  sessionId: null,
+
+  init() {
+    this.els.scroll = document.getElementById('chatScroll');
+    this.els.input = document.getElementById('chatInput');
+    this.els.sendBtn = document.getElementById('chatSendBtn');
+    this.els.attachBtn = document.getElementById('chatAttachBtn');
+    this.els.imageInput = document.getElementById('chatImageInput');
+
+    this.sessionId = Utils.uid();
+    this.pendingImage = null;
+
+    this.els.sendBtn.addEventListener('click', () => this.send());
+    this.els.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); }
+    });
+    this.els.input.addEventListener('input', () => {
+      this.els.input.style.height = 'auto';
+      this.els.input.style.height = Math.min(this.els.input.scrollHeight, 110) + 'px';
+    });
+    this.els.attachBtn.addEventListener('click', () => this.els.imageInput.click());
+    this.els.imageInput.addEventListener('change', (e) => this.handleImageAttach(e));
+
+    this.renderEmpty();
+  },
+
+  prefill(text) {
+    this.els.input.value = text;
+    this.els.input.focus();
+    this.els.input.dispatchEvent(new Event('input'));
+  },
+
+  async handleImageAttach(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      this.pendingImage = await Utils.fileToDataURL(file);
+      Toast.show("Photo attached — add a question and send", "success");
+    } catch (err) {
+      Toast.show("Couldn't read that image", "error");
+    }
+    e.target.value = "";
+  },
+
+  renderEmpty() {
+    this.els.scroll.innerHTML = `
+      <div class="chat-empty">
+        <div class="ic-ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.6-.7L3 21l1.8-5.4A8.4 8.4 0 1 1 21 11.5Z"></path></svg>
+        </div>
+        <h3>Ask RescuePaw AI</h3>
+        <p>Rescue steps, pet care tips, behavior questions, or wildlife encounters — ask anything.</p>
+        <div class="suggest-row">
+          <button class="suggest-chip" onclick="Chat.prefill('A stray cat is hiding and seems scared — how do I safely approach it?')">Approaching a scared stray</button>
+          <button class="suggest-chip" onclick="Chat.prefill('What are signs of heatstroke in dogs and what should I do immediately?')">Heatstroke signs in dogs</button>
+          <button class="suggest-chip" onclick="Chat.prefill('I found baby birds that fell from a nest — should I intervene?')">Fallen baby birds</button>
+        </div>
+      </div>`;
+  },
+
+  appendMessage(role, content, imageDataUrl) {
+    if (this.els.scroll.querySelector('.chat-empty')) this.els.scroll.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role === 'user' ? 'user' : 'bot'}`;
+    const avatarSvg = role === 'user'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"></path></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg>';
+
+    const imgHtml = imageDataUrl ? `<img class="attach" src="${imageDataUrl}" alt="Attached photo">` : '';
+    wrap.innerHTML = `
+      <div class="avatar">${avatarSvg}</div>
+      <div class="bubble">${imgHtml}${Utils.escapeHtml(content)}</div>
+    `;
+    this.els.scroll.appendChild(wrap);
+    this.scrollToBottom();
+    return wrap;
+  },
+
+  appendTyping() {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.id = 'typingIndicator';
+    wrap.innerHTML = `
+      <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg></div>
+      <div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    this.els.scroll.appendChild(wrap);
+    this.scrollToBottom();
+  },
+
+  removeTyping() {
+    document.getElementById('typingIndicator')?.remove();
+  },
+
+  scrollToBottom() {
+    requestAnimationFrame(() => { this.els.scroll.scrollTop = this.els.scroll.scrollHeight; });
+  },
+
+  async send() {
+    const text = this.els.input.value.trim();
+    if (!text && !this.pendingImage) return;
+
+    const imageToSend = this.pendingImage;
+    this.pendingImage = null;
+    this.els.input.value = "";
+    this.els.input.style.height = 'auto';
+
+    this.appendMessage('user', text || "(photo attached)", imageToSend);
+    this.messages.push({ role: 'user', content: text, image: imageToSend });
+    this.els.sendBtn.disabled = true;
+    this.appendTyping();
+
+    try {
+      const apiMessages = [{ role: 'system', content: CONFIG.systemPrompt }];
+      // include recent text history for light context (last 6 turns)
+      this.messages.slice(-6).forEach(m => {
+        if (m.image) {
+          apiMessages.push(OpenRouterAPI.buildImageUserMessage(m.content || "Please describe what you see and offer guidance.", m.image));
+        } else {
+          apiMessages.push({ role: m.role, content: m.content });
+        }
+      });
+
+      const reply = await OpenRouterAPI.chat(apiMessages);
+      this.removeTyping();
+      this.appendMessage('assistant', reply);
+      this.messages.push({ role: 'assistant', content: reply });
+      this.saveSession();
+    } catch (err) {
+      this.removeTyping();
+      const friendly = OpenRouterAPI.friendlyError(err);
+      this.appendMessage('assistant', friendly);
+      Toast.show(friendly, "error", 4200);
+    } finally {
+      this.els.sendBtn.disabled = false;
+    }
+  },
+
+  saveSession() {
+    const history = Store.get(CONFIG.storageKeys.history, []);
+    const existingIdx = history.findIndex(h => h.id === this.sessionId);
+    const firstUserMsg = this.messages.find(m => m.role === 'user');
+    const lastMsg = this.messages[this.messages.length - 1];
+    const session = {
+      id: this.sessionId,
+      type: 'chat',
+      title: (firstUserMsg?.content || 'Photo question').slice(0, 60) || 'New chat',
+      snippet: (lastMsg?.content || '').slice(0, 120),
+      timestamp: Date.now(),
+      messages: this.messages
+    };
+    if (existingIdx >= 0) history[existingIdx] = session; else history.unshift(session);
+    Store.set(CONFIG.storageKeys.history, history.slice(0, 100));
+    Home.refreshStats();
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   CAMERA — capture/upload + AI identification
+--------------------------------------------------------------------------- */
+const Camera = {
+  els: {},
+  currentImage: null,
+
+  init() {
+    this.els.frame = document.getElementById('camFrame');
+    this.els.placeholder = document.getElementById('camPlaceholder');
+    this.els.previewImg = document.getElementById('camPreviewImg');
+    this.els.captureBtn = document.getElementById('camCaptureBtn');
+    this.els.uploadBtn = document.getElementById('camUploadBtn');
+    this.els.fileInput = document.getElementById('camFileInput');
+    this.els.analyzeBtn = document.getElementById('camAnalyzeBtn');
+    this.els.analysisCard = document.getElementById('analysisCard');
+    this.els.analysisBody = document.getElementById('analysisBody');
+
+    this.els.captureBtn.addEventListener('click', () => {
+      this.els.fileInput.setAttribute('capture', 'environment');
+      this.els.fileInput.click();
+    });
+    this.els.uploadBtn.addEventListener('click', () => {
+      this.els.fileInput.removeAttribute('capture');
+      this.els.fileInput.click();
+    });
+    this.els.fileInput.addEventListener('change', (e) => this.handleFile(e));
+    this.els.analyzeBtn.addEventListener('click', () => this.analyze());
+  },
+
+  async handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await Utils.fileToDataURL(file);
+      this.currentImage = dataUrl;
+      this.els.previewImg.src = dataUrl;
+      this.els.previewImg.classList.remove('hidden');
+      this.els.placeholder.classList.add('hidden');
+      this.els.analyzeBtn.style.display = 'flex';
+      this.els.analysisCard.classList.add('hidden');
+      Utils.vibrate(12);
+    } catch (err) {
+      Toast.show("Couldn't load that image", "error");
+    }
+    e.target.value = "";
+  },
+
+  async analyze() {
+    if (!this.currentImage) return;
+    this.els.analysisCard.classList.remove('hidden');
+    this.els.analysisBody.innerHTML = `
+      <div class="skeleton skel-line" style="width:90%"></div>
+      <div class="skeleton skel-line" style="width:95%"></div>
+      <div class="skeleton skel-line" style="width:60%"></div>`;
+    this.els.analyzeBtn.disabled = true;
+
+    const prompt =
+      "Identify the animal in this photo as best you can (species, and breed if a domestic pet). " +
+      "Then briefly note any visible signs of injury, distress, or illness. Finally give 2-4 concise, " +
+      "practical next steps for someone who just found or photographed this animal — including when to " +
+      "contact a vet, animal control, or wildlife rescue. Keep it under 160 words, use short lines.";
+
+    try {
+      const messages = [
+        { role: 'system', content: CONFIG.systemPrompt },
+        OpenRouterAPI.buildImageUserMessage(prompt, this.currentImage)
+      ];
+      const reply = await OpenRouterAPI.chat(messages);
+      this.els.analysisBody.textContent = reply;
+      this.saveScan(reply);
+      Toast.show("Analysis complete", "success");
+    } catch (err) {
+      const friendly = OpenRouterAPI.friendlyError(err);
+      this.els.analysisBody.textContent = friendly;
+      Toast.show(friendly, "error", 4200);
+    } finally {
+      this.els.analyzeBtn.disabled = false;
+    }
+  },
+
+  saveScan(resultText) {
+    const history = Store.get(CONFIG.storageKeys.history, []);
+    const session = {
+      id: Utils.uid(),
+      type: 'scan',
+      title: 'Photo identification',
+      snippet: resultText.slice(0, 120),
+      timestamp: Date.now(),
+      image: this.currentImage,
+      result: resultText
+    };
+    history.unshift(session);
+    Store.set(CONFIG.storageKeys.history, history.slice(0, 100));
+    Home.refreshStats();
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   HISTORY — render saved sessions, support deletion
+--------------------------------------------------------------------------- */
+const History = {
+  render() {
+    const list = document.getElementById('historyList');
+    const history = Store.get(CONFIG.storageKeys.history, []);
+
+    if (!history.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="ic-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 3"></path></svg>
+          </div>
+          <h3>No history yet</h3>
+          <p>Your AI chats and photo scans will appear here once you start using RescuePaw.</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = history.map(item => {
+      const icon = item.type === 'scan'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1l1.5-2h7L17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.6-.7L3 21l1.8-5.4A8.4 8.4 0 1 1 21 11.5Z"></path></svg>';
+      return `
+        <div class="history-item" data-id="${item.id}">
+          <div class="h-ic">${icon}</div>
+          <div class="h-body">
+            <p class="h-title">${Utils.escapeHtml(item.title || 'Untitled')}</p>
+            <p class="h-snippet">${Utils.escapeHtml(item.snippet || '')}</p>
+            <div class="h-meta">${item.type === 'scan' ? 'Photo Scan' : 'AI Chat'} • ${Utils.timeAgo(item.timestamp)}</div>
+          </div>
+          <button class="h-del" data-del-id="${item.id}" aria-label="Delete entry">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"></path></svg>
+          </button>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.h-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.delete(btn.getAttribute('data-del-id'));
+      });
+    });
+
+    list.querySelectorAll('.history-item').forEach(row => {
+      row.addEventListener('click', () => {
+        Toast.show("Viewing past sessions is coming in a future beta update", "default");
+      });
+    });
+  },
+
+  delete(id) {
+    let history = Store.get(CONFIG.storageKeys.history, []);
+    history = history.filter(h => h.id !== id);
+    Store.set(CONFIG.storageKeys.history, history);
+    this.render();
+    Home.refreshStats();
+    Utils.vibrate(10);
+    Toast.show("Entry deleted", "success");
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   SETTINGS — theme handled by Theme module; this covers toggles + clear data
+--------------------------------------------------------------------------- */
+const Settings = {
+  init() {
+    const settings = Store.get(CONFIG.storageKeys.settings, { notif: false, haptics: true });
+    const notifToggle = document.getElementById('toggleNotif');
+    const hapticsToggle = document.getElementById('toggleHaptics');
+
+    notifToggle.classList.toggle('on', !!settings.notif);
+    hapticsToggle.classList.toggle('on', !!settings.haptics);
+
+    notifToggle.addEventListener('click', () => {
+      const s = Store.get(CONFIG.storageKeys.settings, { notif: false, haptics: true });
+      s.notif = !s.notif;
+      Store.set(CONFIG.storageKeys.settings, s);
+      notifToggle.classList.toggle('on', s.notif);
+      Utils.vibrate(8);
+      if (s.notif) Toast.show("Beta notifications enabled (simulated)", "success");
+    });
+
+    hapticsToggle.addEventListener('click', () => {
+      const s = Store.get(CONFIG.storageKeys.settings, { notif: false, haptics: true });
+      s.haptics = !s.haptics;
+      Store.set(CONFIG.storageKeys.settings, s);
+      hapticsToggle.classList.toggle('on', s.haptics);
+      if (s.haptics && navigator.vibrate) navigator.vibrate(8);
+    });
+
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => this.clearHistory());
+
+    // API key status indicator
+    const statusInput = document.getElementById('apiKeyStatus');
+    statusInput.value = OpenRouterAPI.isConfigured()
+      ? `Connected • model: ${OPENROUTER_MODEL}`
+      : "Not configured — using placeholder key";
+  },
+
+  clearHistory() {
+    if (!confirm("Clear all local chat and scan history? This can't be undone.")) return;
+    Store.remove(CONFIG.storageKeys.history);
+    History.render();
+    Home.refreshStats();
+    Toast.show("History cleared", "success");
+    Utils.vibrate([10, 40, 10]);
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   PWA — manifest injection, service worker (offline shell), install prompt
+--------------------------------------------------------------------------- */
+const PWA = {
+  deferredPrompt: null,
+
+  init() {
+    this.injectManifest();
+    this.registerServiceWorker();
+    this.bindInstallPrompt();
+  },
+
+  injectManifest() {
+    // Build a manifest dynamically and attach as a blob URL —
+    // keeps this a true single-file app with no extra assets.
+    const manifest = {
+      name: "RescuePaw AI (Beta)",
+      short_name: "RescuePaw",
+      description: "AI-assisted animal rescue, pet care & wildlife guidance — prototype beta.",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#0B100D",
+      theme_color: "#0B100D",
+      orientation: "portrait",
+      icons: [
+        { src: this.iconDataUrl(192), sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
+        { src: this.iconDataUrl(512), sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    document.getElementById('manifestLink').setAttribute('href', url);
+
+    const icon192 = this.iconDataUrl(192);
+    document.getElementById('appleIcon').setAttribute('href', icon192);
+    document.getElementById('favicon').setAttribute('href', icon192);
+  },
+
+  iconDataUrl(size) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
+        <rect width="100" height="100" rx="22" fill="#10170F"/>
+        <path d="M50 82s-31-19-41-38C3 32 8 18 22 18c8.3 0 14.2 4.6 17 9.2C41.8 22.6 47.7 18 56 18c14 0 19 14 9 26-10 19-41 38-41 38l13-12-13 12Z" fill="url(#g)"/>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="#E8A33D"/><stop offset="1" stop-color="#E8623D"/></linearGradient></defs>
+      </svg>`;
+    return "data:image/svg+xml;base64," + btoa(svg);
+  },
+
+  registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    // Minimal offline-ready shell service worker, built inline as a Blob —
+    // caches the app shell so it can re-open without network.
+    const swSource = `
+      const CACHE = 'rescuepaw-shell-v0-1';
+      self.addEventListener('install', (e) => {
+        self.skipWaiting();
+      });
+      self.addEventListener('activate', (e) => {
+        e.waitUntil(self.clients.claim());
+      });
+      self.addEventListener('fetch', (e) => {
+        if (e.request.method !== 'GET') return;
+        e.respondWith(
+          caches.match(e.request).then((cached) => {
+            if (cached) return cached;
+            return fetch(e.request).then((res) => {
+              const resClone = res.clone();
+              caches.open(CACHE).then((cache) => {
+                try { cache.put(e.request, resClone); } catch (err) {}
+              });
+              return res;
+            }).catch(() => cached);
+          })
+        );
+      });
+    `;
+    try {
+      const blob = new Blob([swSource], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch((err) => {
+        console.warn("Service worker registration skipped:", err.message);
+      });
+    } catch (e) {
+      console.warn("Service worker setup failed:", e);
+    }
+  },
+
+  bindInstallPrompt() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPrompt = e;
+      document.getElementById('installBanner').classList.add('show');
+    });
+
+    const triggerInstall = async () => {
+      if (!this.deferredPrompt) {
+        Toast.show("Use your browser's 'Add to Home Screen' option to install", "default", 3800);
+        return;
+      }
+      this.deferredPrompt.prompt();
+      const choice = await this.deferredPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        Toast.show("RescuePaw installed!", "success");
+        document.getElementById('installBanner').classList.remove('show');
+      }
+      this.deferredPrompt = null;
+    };
+
+    document.getElementById('installBtn').addEventListener('click', triggerInstall);
+    document.getElementById('settingsInstallBtn').addEventListener('click', triggerInstall);
+
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('installBanner').classList.remove('show');
+    });
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   BOOTSTRAP
+--------------------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  Toast.init();
+  Theme.init();
+  App.init();
+  Chat.init();
+  Camera.init();
+  Settings.init();
+  History.render();
+  Home.refreshStats();
+  PWA.init();
+
+  // Friendly heads-up if the demo API key hasn't been replaced yet.
+  if (!OpenRouterAPI.isConfigured()) {
+    setTimeout(() => {
+      Toast.show("Demo mode: add your OpenRouter API key in the source to enable live AI", "default", 5000);
+    }, 900);
+  }
+});
+</script>
+</body>
+</html>
